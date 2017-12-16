@@ -14,23 +14,170 @@ import static techbook.business.ReturnValue.*;
 
 public class Solution {
 
-
+    public  static void main(String[] args) {
+        createTables();
+        clearTables();
+        dropTables();
+    }
     public static void createTables()
     {
-    
-    }
+        Connection connection = DBConnector.getConnection();
 
+        String groups_query = "CREATE TABLE Groups\n" +
+                "(\n" +
+                "    id SERIAL,\n" +
+                "    name text NOT NULL,\n" +
+                "    PRIMARY KEY (id)\n" +
+                ")";
+
+        String students_query = "CREATE TABLE public.Students\n" +
+                "(\n" +
+                "    id integer NOT NULL,\n" +
+                "    name text COLLATE pg_catalog.\"default\" NOT NULL,\n" +
+                "    faculty_id integer NOT NULL,\n" +
+                "    CONSTRAINT student_pkey PRIMARY KEY (id),\n" +
+                "    CONSTRAINT positive_id CHECK (id > 0),\n" +
+                "    CONSTRAINT faculty_exists FOREIGN KEY (faculty_id)\n" +
+                "    REFERENCES public.Groups (id) MATCH SIMPLE\n" +
+                "ON UPDATE NO ACTION\n" +
+                "ON DELETE CASCADE\n" +
+                ")";
+
+        String members_query = "CREATE TABLE public.Members\n" +
+                "(\n" +
+                "    group_id integer NOT NULL,\n" +
+                "    student_id integer NOT NULL,\n" +
+                "    CONSTRAINT group_exists FOREIGN KEY (group_id)\n" +
+                "        REFERENCES public.Groups (id) MATCH SIMPLE\n" +
+                "        ON UPDATE NO ACTION\n" +
+                "        ON DELETE CASCADE, \n" +
+                "    CONSTRAINT student_exists FOREIGN KEY (student_id)\n" +
+                "        REFERENCES public.Students (id) MATCH SIMPLE\n" +
+                "        ON UPDATE NO ACTION\n" +
+                "        ON DELETE CASCADE\n" +
+                ")";
+
+        String friends_query = "CREATE TABLE public.Friends\n" +
+                "(\n" +
+                "    id1 integer NOT NULL,\n" +
+                "    id2 integer NOT NULL,\n" +
+                "    CONSTRAINT student1_exists FOREIGN KEY (id1)\n" +
+                "        REFERENCES public.Students (id) MATCH SIMPLE\n" +
+                "        ON UPDATE NO ACTION\n" +
+                "        ON DELETE CASCADE,\n" +
+                "    CONSTRAINT student2_exists FOREIGN KEY (id2)\n" +
+                "        REFERENCES public.Students (id) MATCH SIMPLE\n" +
+                "        ON UPDATE NO ACTION\n" +
+                "        ON DELETE CASCADE\n" +
+                ")";
+
+        String likes_query = "CREATE TABLE public.Likes\n" +
+                "(\n" +
+                "    post_id integer NOT NULL,\n" +
+                "    student_id integer NOT NULL,\n" +
+                "    CONSTRAINT student_exists FOREIGN KEY (student_id)\n" +
+                "        REFERENCES public.Students (id) MATCH SIMPLE\n" +
+                "        ON UPDATE NO ACTION\n" +
+                "        ON DELETE CASCADE,\n" +
+                "    CONSTRAINT post_exists FOREIGN KEY (post_id)\n" +
+                "        REFERENCES public.Posts (id) MATCH SIMPLE\n" +
+                "        ON UPDATE NO ACTION\n" +
+                "        ON DELETE CASCADE\n" +
+                ")";
+
+
+        String posts_query = "CREATE TABLE Posts\n" +
+                "(\n" +
+                "    id integer NOT NULL,\n" +
+                "    author integer NOT NULL,\n" +
+                "    group_id integer,\n" +
+                "    contents text NOT NULL,\n" +
+                "    pdate date ,\n" +
+                "    PRIMARY KEY (id),\n" +
+                "    CHECK (id >= 0),\n" +
+                "    CONSTRAINT student_exists FOREIGN KEY (author) REFERENCES Students(id) ON DELETE CASCADE,\n" +
+                "    CONSTRAINT group_exists FOREIGN KEY (group_id) REFERENCES Groups(id) ON DELETE CASCADE\n" +
+                ")";
+
+        queryStatement(connection, groups_query);
+        queryStatement(connection, students_query);
+        queryStatement(connection, members_query);
+        queryStatement(connection, friends_query);
+        queryStatement(connection, posts_query);
+        queryStatement(connection, likes_query);
+
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
     public static void clearTables()
     {
-   
-    }
+        Connection connection = DBConnector.getConnection();
 
-    
+        String delete_groups = "DELETE FROM Groups";
+        String delete_students = "DELETE FROM Students";
+        String delete_members = "DELETE FROM Members";
+        String delete_friends = "DELETE FROM Friends";
+        String delete_likes = "DELETE FROM Likes";
+        String delete_posts = "DELETE FROM Posts";
+
+        queryStatement(connection, delete_groups);
+        queryStatement(connection, delete_students);
+        queryStatement(connection, delete_members);
+        queryStatement(connection, delete_friends);
+        queryStatement(connection, delete_likes);
+        queryStatement(connection, delete_posts);
+
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
     public static void dropTables()
     {
-      
+        Connection connection = DBConnector.getConnection();
+
+        String drop_groups = "DROP TABLE IF EXISTS Groups CASCADE";
+        String drop_students = "DROP TABLE IF EXISTS Students CASCADE";
+        String drop_members = "DROP TABLE IF EXISTS Members CASCADE";
+        String drop_friends = "DROP TABLE IF EXISTS Friends CASCADE";
+        String drop_likes = "DROP TABLE IF EXISTS Likes CASCADE";
+        String drop_posts = "DROP TABLE IF EXISTS Posts CASCADE";
+
+        queryStatement(connection, drop_groups);
+        queryStatement(connection, drop_students);
+        queryStatement(connection, drop_members);
+        queryStatement(connection, drop_friends);
+        queryStatement(connection, drop_likes);
+        queryStatement(connection, drop_posts);
+
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void queryStatement(Connection connection, String query) {
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement(query);
+            pstmt.execute();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     
