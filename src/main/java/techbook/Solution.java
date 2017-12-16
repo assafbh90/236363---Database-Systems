@@ -4,20 +4,25 @@ import techbook.business.*;
 import techbook.data.DBConnector;
 import techbook.data.PostgreSQLErrorCodes;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
+import java.time.Clock;
 import java.util.ArrayList;
 
 import static techbook.business.ReturnValue.*;
+import static techbook.data.PostgreSQLErrorCodes.CHECK_VIOLATION;
 
 public class Solution {
 
     public  static void main(String[] args) {
-        createTables();
-        clearTables();
-        dropTables();
+        //createTables();
+        Student s = new Student();
+        s.setId(1);
+        s.setFaculty("assaf");
+        s.setName("moshe");
+        System.out.print(getStudentProfile(1));
+        deleteStundet(1);
+        //clearTables();
+        //dropTables();
     }
     public static void createTables()
     {
@@ -193,9 +198,108 @@ public class Solution {
      */
     public static ReturnValue addStudent(Student student)
     {
-        
-        return null;
 
+        Connection connection = DBConnector.getConnection();
+        Long group_id = createGroup(connection, student.getFaculty());
+
+        ReturnValue returnValue = insertStudent(connection, student, group_id);
+
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        }
+        return returnValue;
+
+    }
+
+    private static ReturnValue insertStudent(Connection connection, Student student, Long group_id) {
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement("INSERT INTO Students (id, name, faculty_id)" +
+                    "   SELECT ?, ?, ?\n" +
+                    "WHERE\n" +
+                    "    NOT EXISTS (\n" +
+                    "        SELECT * FROM Students WHERE id = (?)\n" +
+                    "    )");
+            pstmt.setInt(1, student.getId());
+            pstmt.setString(2, student.getName());
+            pstmt.setLong(3, group_id);
+            pstmt.setLong(4, student.getId());
+            int affectedRows = pstmt.executeUpdate();
+            if(affectedRows == 0) {
+                return ReturnValue.ALREADY_EXISTS;
+            }
+
+        } catch (SQLException e) {
+            if(Integer.valueOf(e.getSQLState()) == CHECK_VIOLATION.getValue()) {
+                return ReturnValue.BAD_PARAMS;
+            } else {
+                return ReturnValue.ERROR;
+            }
+        }
+        finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                if(Integer.valueOf(e.getSQLState()) == CHECK_VIOLATION.getValue()) {
+                    return ReturnValue.BAD_PARAMS;
+                } else {
+                    return ReturnValue.ERROR;
+                }
+            }
+        }
+        return ReturnValue.OK;
+    }
+
+    private static Long createGroup(Connection connection, String group_name) {
+        PreparedStatement pstmt = null;
+        Long groud_id = Long.valueOf(-1);
+
+        try {
+            pstmt = connection.prepareStatement("INSERT INTO Groups (name)" +
+                    " SELECT (?)\n" +
+                    "WHERE\n" +
+                    "    NOT EXISTS (\n" +
+                    "        SELECT name FROM Groups WHERE name = (?)\n" +
+                    "    )", Statement.RETURN_GENERATED_KEYS);
+            pstmt.setString(1, group_name);
+            pstmt.setString(2, group_name);
+            pstmt.execute();
+
+            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    groud_id = generatedKeys.getLong(1);
+                }
+                else {
+                    try {
+                        pstmt.close();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                    pstmt = connection.prepareStatement("SELECT id FROM Groups WHERE  name = (?)");
+                    pstmt.setString(1, group_name);
+                    ResultSet results = pstmt.executeQuery();
+
+                    if(results.next()) {
+                        groud_id = results.getLong(1);
+                    }
+
+                    results.close();
+                    return groud_id;
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        return groud_id;
     }
 
 
@@ -211,8 +315,35 @@ public class Solution {
      */
     public static ReturnValue deleteStundet(Integer studentId)
     {
-        
-        return null;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement(
+                    "DELETE FROM Students " +
+
+                            "where id = ?");
+            pstmt.setInt(1,studentId);
+
+            int affectedRows = pstmt.executeUpdate();
+            if(affectedRows == 0) {
+                return ReturnValue.NOT_EXISTS;
+            }
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        }
+        finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
+        }
+        return ReturnValue.OK;
     }
 
 
@@ -226,8 +357,41 @@ public class Solution {
 
     public static Student getStudentProfile(Integer studentId)
     {
-        
-        return null;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement("SELECT Students.id, Students.name, Groups.name " +
+                    "FROM (Students INNER JOIN Groups ON Students.faculty_id = Groups.id) " +
+                    "WHERE Students.id = (?)");
+            pstmt.setInt(1, studentId);
+
+            ResultSet results = pstmt.executeQuery();
+            Student s = new Student();
+            if(results.next()) {
+                 s.setId(results.getInt(1));
+                 s.setName(results.getString(2));
+                 s.setFaculty(results.getString(3));
+                 return s;
+            }
+
+            results.close();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        return Student.badStudent();
     }
 
 
@@ -246,8 +410,6 @@ public class Solution {
     public static ReturnValue updateStudentFaculty(Student student){
 
         return null;
-
-
     }
 
 
