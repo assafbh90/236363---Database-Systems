@@ -5,17 +5,11 @@ import techbook.data.DBConnector;
 import techbook.data.PostgreSQLErrorCodes;
 
 import java.sql.*;
-import java.time.Clock;
 import java.util.ArrayList;
 
-import static techbook.business.ReturnValue.*;
 import static techbook.data.PostgreSQLErrorCodes.*;
 
 public class Solution {
-
-    // Don't forget, that those queries have an argument:
-    private static String GROUP_NAME_TO_ID_QUERY = "(SELECT id FROM Groups WHERE  name = (?))";
-    private static String POST_ID_TO_N_LIKES_QUERY = "(SELECT COUNT(*) FROM Likes WHERE  post_id = (?))";
 
     public  static void main(String[] args) {
         //createTables();
@@ -465,9 +459,9 @@ public class Solution {
             pstmt = connection.prepareStatement(
                     "INSERT INTO Posts(id, author, group_id, contents, pdate)\n" +
                             "SELECT \n" +
-                            "    ?, ?, " + GROUP_NAME_TO_ID_QUERY +", ?, ? \n" +
+                            "    ?, ?, (SELECT id FROM Groups WHERE  name = (?)), ?, ? \n" +
                             "    FROM Members WHERE student_id=? " +
-                            "    AND group_id=" + GROUP_NAME_TO_ID_QUERY + ";");
+                            "    AND group_id=(SELECT id FROM Groups WHERE  name = (?));");
             pstmt.setInt(1, post.getId());
             pstmt.setInt(2, post.getAuthour());
             pstmt.setString(3, groupName);
@@ -546,7 +540,7 @@ public class Solution {
         PreparedStatement pstmt = null;
         try {
             pstmt = connection.prepareStatement("SELECT id, author, contents, pdate, " +
-                    POST_ID_TO_N_LIKES_QUERY +
+                    "(SELECT COUNT(*) FROM Likes WHERE  post_id = (?))" +
                     "FROM Posts " +
                     "WHERE id = (?)");
             pstmt.setInt(1, postId);
@@ -699,7 +693,7 @@ public class Solution {
             pstmt = connection.prepareStatement(
                     "INSERT INTO Members(group_id, student_id) " +
                             "VALUES (" +
-                            GROUP_NAME_TO_ID_QUERY +
+                            "(SELECT id FROM Groups WHERE  name = (?))" +
                             ", ?)");
             pstmt.setString(1, groupName);
             pstmt.setInt(2,studentId);
@@ -778,7 +772,7 @@ public class Solution {
             pstmt = connection.prepareStatement(
                     "DELETE FROM Members " +
                             "WHERE " +
-                            "group_id=" + GROUP_NAME_TO_ID_QUERY +
+                            "group_id=" + "(SELECT id FROM Groups WHERE  name = (?))" +
                             " AND student_id=?");
             pstmt.setString(1, groupName);
             pstmt.setInt(2,studentId);
