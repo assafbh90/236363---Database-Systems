@@ -9,9 +9,13 @@ import java.time.Clock;
 import java.util.ArrayList;
 
 import static techbook.business.ReturnValue.*;
-import static techbook.data.PostgreSQLErrorCodes.CHECK_VIOLATION;
+import static techbook.data.PostgreSQLErrorCodes.*;
 
 public class Solution {
+
+    // Don't forget, that those queries have an argument:
+    private static String GROUP_NAME_TO_ID_QUERY = "(SELECT id FROM Groups WHERE  name = (?))";
+    private static String POST_ID_TO_N_LIKES_QUERY = "(SELECT COUNT(*) FROM Likes WHERE  post_id = (?))";
 
     public  static void main(String[] args) {
         //createTables();
@@ -32,7 +36,8 @@ public class Solution {
                 "(\n" +
                 "    id SERIAL,\n" +
                 "    name text NOT NULL,\n" +
-                "    PRIMARY KEY (id)\n" +
+                "    PRIMARY KEY (id),\n" +
+                "    UNIQUE (name)\n" +
                 ")";
 
         String students_query = "CREATE TABLE public.Students\n" +
@@ -52,6 +57,7 @@ public class Solution {
                 "(\n" +
                 "    group_id integer NOT NULL,\n" +
                 "    student_id integer NOT NULL,\n" +
+                "    CONSTRAINT unique_pairs UNIQUE (student_id, group_id),\n" +
                 "    CONSTRAINT group_exists FOREIGN KEY (group_id)\n" +
                 "        REFERENCES public.Groups (id) MATCH SIMPLE\n" +
                 "        ON UPDATE NO ACTION\n" +
@@ -203,6 +209,8 @@ public class Solution {
         Long group_id = createGroup(connection, student.getFaculty());
 
         ReturnValue returnValue = insertStudent(connection, student, group_id);
+
+        joinGroup(student.getId(), student.getFaculty());
 
         try {
             connection.close();
@@ -408,8 +416,33 @@ public class Solution {
      * ERROR in case of database error
      */
     public static ReturnValue updateStudentFaculty(Student student){
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ReturnValue result = null;
+        try {
+            // join new faculty (if nonexistent - will be created)
+            // if student doesn't exist - joinGroup will catch this.
+            result = joinGroup(student.getId(), student.getFaculty());
+            if (!result.equals(ReturnValue.OK))
+                return result;
 
-        return null;
+            pstmt = connection.prepareStatement(
+                    "UPDATE Students " +
+                            "SET faculty_id=(SELECT id FROM groups WHERE name=?)\n" +
+                            "WHERE id=?;");
+            pstmt.setString(1,student.getFaculty());
+            pstmt.setInt(2,student.getId());
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        }
+        finally {
+            result = finalize(connection, pstmt);
+            if (!result.equals(ReturnValue.OK))
+                return result;
+        }
+        return ReturnValue.OK;
     }
 
 
@@ -423,13 +456,45 @@ public class Solution {
      * NOT_EXISTS if student is not a member in the group
      * ALREADY_EXISTS if post already exists
      * ERROR in case of database error
-
-
      */
     public static ReturnValue addPost(Post post, String groupName)
     {
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement(
+                    "INSERT INTO Posts(id, author, group_id, contents, pdate)\n" +
+                            "SELECT \n" +
+                            "    ?, ?, " + GROUP_NAME_TO_ID_QUERY +", ?, ? \n" +
+                            "    FROM Members WHERE student_id=? " +
+                            "    AND group_id=" + GROUP_NAME_TO_ID_QUERY + ";");
+            pstmt.setInt(1, post.getId());
+            pstmt.setInt(2, post.getAuthour());
+            pstmt.setString(3, groupName);
+            pstmt.setString(4, post.getText());
+            pstmt.setTimestamp(5, post.getTimeStamp());
+            pstmt.setInt(6, post.getAuthour());
+            pstmt.setString(7, groupName);
 
-        return null;
+            int affectedRows = pstmt.executeUpdate();
+            if(affectedRows == 0) {
+                return ReturnValue.NOT_EXISTS;
+            }
+        } catch (SQLException e) {
+            if (sqlStateMatches(e, FOREIGN_KEY_VIOLATION) || sqlStateMatches(e, NOT_NULL_VIOLATION)) {
+                return ReturnValue.NOT_EXISTS;
+            } else if (sqlStateMatches(e, UNIQUE_VIOLATION)) { // of post id
+                return ReturnValue.ALREADY_EXISTS;
+            } else {
+                return ReturnValue.ERROR;
+            }
+        }
+        finally {
+            ReturnValue result = finalize(connection, pstmt);
+            if (!result.equals(ReturnValue.OK))
+                return result;
+        }
+        return ReturnValue.OK;
     }
 
 
@@ -444,8 +509,27 @@ public class Solution {
      */
     public static ReturnValue deletePost(Integer postId)
     {
-        
-        return null;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement(
+                    "DELETE FROM Posts " +
+                            "WHERE id=?");
+            pstmt.setInt(1, postId);
+
+            int affectedRows = pstmt.executeUpdate();
+            if(affectedRows == 0) {
+                return ReturnValue.NOT_EXISTS;
+            }
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        }
+        finally {
+            ReturnValue result = finalize(connection, pstmt);
+            if (!result.equals(ReturnValue.OK))
+                return result;
+        }
+        return ReturnValue.OK;
     }
 
 
@@ -458,8 +542,36 @@ public class Solution {
      */
     public static Post getPost(Integer postId)
     {
-        
-        return null;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement("SELECT id, author, contents, pdate, " +
+                    POST_ID_TO_N_LIKES_QUERY +
+                    "FROM Posts " +
+                    "WHERE id = (?)");
+            pstmt.setInt(1, postId);
+            pstmt.setInt(2, postId);
+
+            ResultSet results = pstmt.executeQuery();
+            Post p = new Post();
+            if(results.next()) {
+                p.setId(results.getInt(1));
+                p.setAuthour(results.getInt(2));
+                p.setText(results.getString(3));
+                p.setTimeStamp(results.getTimestamp(4));
+                p.setLikes(results.getInt(5));
+                return p;
+            }
+
+            results.close();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        finally {
+            finalizePrintStack(connection, pstmt);
+        }
+        return Post.badPost();
     }
 
     /**
@@ -470,13 +582,36 @@ public class Solution {
      * NOT_EXISTS if post does not exist
      * BAD_PARAMS in case of illegal parameters
      * ERROR in case of database error
-
-
      */
     public static ReturnValue updatePost(Post post)
     {
-       
-        return null;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ReturnValue result = null;
+        try {
+            pstmt = connection.prepareStatement(
+                    "UPDATE Posts " +
+                            "SET text=?\n" +
+                            "WHERE id=? " +
+                            " AND author=? " +
+                            " AND pdate=?;");
+            pstmt.setInt(1, post.getId());
+            pstmt.setInt(2, post.getAuthour());
+            pstmt.setTimestamp(3, post.getTimeStamp());
+
+            int affectedRows = pstmt.executeUpdate();
+            if(affectedRows == 0) {
+                return ReturnValue.NOT_EXISTS;
+            }
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        }
+        finally {
+            result = finalize(connection, pstmt);
+            if (!result.equals(ReturnValue.OK))
+                return result;
+        }
+        return ReturnValue.OK;
     }
 
 
@@ -548,7 +683,7 @@ public class Solution {
 
     /**
      *
-     Adds a student to a group
+     Adds a student to a group (LP: if group doesn't exist - create it)
      input: id of student to be added, the group name the student is added to
      output: ReturnValue with the following conditions:
      * OK in case of success
@@ -558,22 +693,109 @@ public class Solution {
      */
     public static ReturnValue joinGroup(Integer studentId, String groupName)
     {
-        return null;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement(
+                    "INSERT INTO Members(group_id, student_id) " +
+                            "VALUES (" +
+                            GROUP_NAME_TO_ID_QUERY +
+                            ", ?)");
+            pstmt.setString(1, groupName);
+            pstmt.setInt(2,studentId);
+            pstmt.execute();
+        } catch (SQLException e) {
+            if (sqlStateMatches(e, FOREIGN_KEY_VIOLATION)) { // of student_id
+                return ReturnValue.NOT_EXISTS;
+            } else if (sqlStateMatches(e, UNIQUE_VIOLATION)) { // of tuple (group_id, student_id)
+                return ReturnValue.ALREADY_EXISTS;
+            } else if (sqlStateMatches(e, NOT_NULL_VIOLATION)) { // GROUP_NAME_TO_ID_QUERY returned NULL
+                createGroup(connection, groupName);
+                try {
+                    pstmt.execute();
+                } catch (SQLException e1) {
+                    return ReturnValue.ERROR;
+                }
+            } else {
+                return ReturnValue.ERROR;
+            }
+        }
+        finally {
+            ReturnValue result = finalize(connection, pstmt);
+            if (!result.equals(ReturnValue.OK))
+                return result;
+        }
+        return ReturnValue.OK;
+    }
+
+    private static boolean sqlStateMatches(SQLException e, PostgreSQLErrorCodes errorCode){
+        String errorString = Integer.toString(errorCode.getValue());
+        return e.getSQLState().equals(errorString);
+    }
+
+    private static ReturnValue finalize(Connection connection, PreparedStatement pstmt) {
+        try {
+            pstmt.close();
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        }
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        }
+        return ReturnValue.OK;
+    }
+
+    // TODO: rename
+    private static void finalizePrintStack(Connection connection, PreparedStatement pstmt) {
+        try {
+            pstmt.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
      *
      Removes a student from a group
-     input: student id 1, student id 2
+     input: student id, group name
      output: ReturnValue with the following conditions:
      * OK in case of success
      * NOT_EXISTS if the student is not a member of the group
      * ERROR in case of database error
      */
-    public static ReturnValue leaveGroup(Integer studentId,String groupName)
+    public static ReturnValue leaveGroup(Integer studentId, String groupName)
     {
-       
-        return null;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = connection.prepareStatement(
+                    "DELETE FROM Members " +
+                            "WHERE " +
+                            "group_id=" + GROUP_NAME_TO_ID_QUERY +
+                            " AND student_id=?");
+            pstmt.setString(1, groupName);
+            pstmt.setInt(2,studentId);
+
+            int affectedRows = pstmt.executeUpdate();
+            if(affectedRows == 0) {
+                return ReturnValue.NOT_EXISTS;
+            }
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        }
+        finally {
+            ReturnValue result = finalize(connection, pstmt);
+            if (!result.equals(ReturnValue.OK))
+                return result;
+        }
+        return ReturnValue.OK;
     }
 
 
