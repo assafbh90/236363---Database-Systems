@@ -87,6 +87,9 @@ public class Solution {
         for (Post post : getStudentFeed(2)) {
             System.out.println(post.toString());
         }
+        for (Post post : getGroupFeed(s.getFaculty())) {
+            System.out.println(post.toString());
+        }
 
     }
 
@@ -141,7 +144,7 @@ public class Solution {
                 "        REFERENCES public.Students (id) MATCH SIMPLE\n" +
                 "        ON UPDATE NO ACTION\n" +
                 "        ON DELETE CASCADE\n" +
-                ")";
+                "); ALTER TABLE Friends add CONSTRAINT not_self_friend CHECK (id1 <> id2)";
 
         String likes_query = "CREATE TABLE public.Likes\n" +
                 "(\n" +
@@ -996,7 +999,40 @@ public class Solution {
      */
 
     public static Feed getGroupFeed(String groupName) {
-        return null;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        Feed feed = new Feed();
+        try {
+            pstmt = connection.prepareStatement("SELECT id, author, (SELECT COUNT(*) FROM Likes WHERE post_id = id), contents, pdate " +
+                    "FROM Posts " +
+                    "   WHERE group_id = (SELECT id FROM Groups WHERE  name = (?))");
+            pstmt.setString(1, groupName);
+            ResultSet results = pstmt.executeQuery();
+
+
+            while (results.next()) {
+                Post p = new Post();
+                p.setId(results.getInt(1));
+                p.setAuthour(results.getInt(2));
+                p.setLikes(results.getInt(3));
+                p.setText(results.getString(4));
+                p.setTimeStamp(results.getTimestamp(5));
+                feed.add(p);
+            }
+
+            results.close();
+
+
+        } catch (SQLException e) {
+            return new Feed();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return new Feed();
+            }
+        }
+        return feed;
     }
 
     /**
