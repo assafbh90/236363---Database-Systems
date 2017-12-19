@@ -13,6 +13,7 @@ public class Solution {
 
     public  static void main(String[] args) {
         //createTables();
+        dropTables();
         Student s = new Student();
         s.setId(1);
         s.setFaculty("assaf");
@@ -97,7 +98,7 @@ public class Solution {
                 "    author integer NOT NULL,\n" +
                 "    group_id integer,\n" +
                 "    contents text NOT NULL,\n" +
-                "    pdate date ,\n" +
+                "    pdate timestamp ,\n" +
                 "    PRIMARY KEY (id),\n" +
                 "    CHECK (id >= 0),\n" +
                 "    CONSTRAINT student_exists FOREIGN KEY (author) REFERENCES Students(id) ON DELETE CASCADE,\n" +
@@ -772,10 +773,10 @@ public class Solution {
             pstmt = connection.prepareStatement(
                     "DELETE FROM Members " +
                             "WHERE " +
-                            "group_id=" + "(SELECT id FROM Groups WHERE  name = (?))" +
+                            "group_id=(SELECT id FROM Groups WHERE  name = (?))" +
                             " AND student_id=?");
             pstmt.setString(1, groupName);
-            pstmt.setInt(2,studentId);
+            pstmt.setInt(2, studentId);
 
             int affectedRows = pstmt.executeUpdate();
             if(affectedRows == 0) {
