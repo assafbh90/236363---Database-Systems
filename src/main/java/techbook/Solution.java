@@ -500,18 +500,18 @@ public class Solution {
         PreparedStatement pstmt = null;
         ReturnValue result = null;
         try {
-            // join new faculty (if nonexistent - will be created)
-            // if student doesn't exist - joinGroup will catch this.
-            result = joinGroup(student.getId(), student.getFaculty());
-            if (!result.equals(ReturnValue.OK))
-                return result;
-
             pstmt = connection.prepareStatement(
                     "UPDATE Students " +
                             "SET faculty_id=(SELECT id FROM groups WHERE name=?)\n" +
                             "WHERE id=?;");
             pstmt.setString(1, student.getFaculty());
             pstmt.setInt(2, student.getId());
+
+            // join new faculty (if nonexistent - will be created)
+            // if student doesn't exist - joinGroup will catch this.
+            result = joinGroup(student.getId(), student.getFaculty());
+            if (!result.equals(ReturnValue.OK))
+                return result;
             pstmt.executeUpdate();
 
         } catch (SQLException e) {
@@ -639,7 +639,7 @@ public class Solution {
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
-            finalizePrintStack(connection, pstmt);
+            finalizePrintExceptionStack(connection, pstmt);
         }
         return Post.badPost();
     }
@@ -915,39 +915,6 @@ public class Solution {
         return ReturnValue.OK;
     }
 
-    private static boolean sqlStateMatches(SQLException e, PostgreSQLErrorCodes errorCode) {
-        String errorString = Integer.toString(errorCode.getValue());
-        return e.getSQLState().equals(errorString);
-    }
-
-    private static ReturnValue finalize(Connection connection, PreparedStatement pstmt) {
-        try {
-            pstmt.close();
-        } catch (SQLException e) {
-            return ReturnValue.ERROR;
-        }
-        try {
-            connection.close();
-        } catch (SQLException e) {
-            return ReturnValue.ERROR;
-        }
-        return ReturnValue.OK;
-    }
-
-    // TODO: rename
-    private static void finalizePrintStack(Connection connection, PreparedStatement pstmt) {
-        try {
-            pstmt.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        try {
-            connection.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
     /**
      * Removes a student from a group
      * input: student id, group name
@@ -1142,9 +1109,82 @@ public class Solution {
      * output: an ArrayList containing the student pairs. In case of an error, return an empty ArrayList
      */
     public static ArrayList<StudentIdPair> getRemotelyConnectedPairs() {
-        return null;
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ArrayList<StudentIdPair> pairs = new ArrayList<>();
+        try {
+            pstmt = connection.prepareStatement(
+                    "WITH RECURSIVE traverse(id1, id2, distance, visited) AS \n" +
+                    "(\n" +
+                    " 	SELECT id1, id2, 1, ARRAY[id1] \n" +
+                    "	FROM Friends f \n" +
+                    "UNION ALL\n" +
+                    " 	SELECT t.id1, f.id2, t.distance + 1, t.visited || f.id2\n" +
+                    "	FROM Friends f, traverse t \n" +
+                    "	WHERE f.id1 = t.id2 AND NOT f.id2=ANY(t.visited) \n" +
+                    ") \n" +
+                    "SELECT id1, id2 \n" +
+                    "FROM traverse \n" +
+                    "GROUP BY id1, id2 \n" +
+                    "HAVING MIN(distance) >= 5;");
+
+            ResultSet results = pstmt.executeQuery();
+            while (results.next()) {
+                StudentIdPair p = new StudentIdPair();
+                p.setStudentId1(results.getInt(1));
+                p.setStudentId2(results.getInt(2));
+                pairs.add(p);
+            }
+            results.close();
+
+        } catch (SQLException e) {
+            return new ArrayList<>();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return new ArrayList<>();
+            }
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                return new ArrayList<>();
+            }
+        }
+        return pairs;
     }
 
+    private static boolean sqlStateMatches(SQLException e, PostgreSQLErrorCodes errorCode) {
+        String errorString = Integer.toString(errorCode.getValue());
+        return e.getSQLState().equals(errorString);
+    }
+
+    private static ReturnValue finalize(Connection connection, PreparedStatement pstmt) {
+        try {
+            pstmt.close();
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        }
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            return ReturnValue.ERROR;
+        }
+        return ReturnValue.OK;
+    }
+
+    private static void finalizePrintExceptionStack(Connection connection, PreparedStatement pstmt) {
+        try {
+            pstmt.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
 }
 
