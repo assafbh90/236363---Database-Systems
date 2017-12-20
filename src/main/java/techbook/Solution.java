@@ -30,6 +30,16 @@ public class Solution {
         s1.setName("yosi");
         System.out.println(addStudent(s1));
 
+        Student s2 = new Student();
+        s2.setId(21);
+        s2.setFaculty("assaf");
+        s2.setName("moshemoshe");
+        System.out.println(addStudent(s2));
+        s2.setId(20);
+        s2.setFaculty("assaf1");
+        s2.setName("moshemosheiiiii");
+        System.out.println(addStudent(s2));
+
         System.out.println(getStudentProfile(1));
         Post p = new Post();
         p.setAuthour(1);
@@ -38,6 +48,14 @@ public class Solution {
         p.setLikes(3);
         p.setText("asdfsdafdsf");
         System.out.println("print posts");
+        System.out.println(addPost(p, s.getFaculty()));
+        p.setAuthour(1);
+        p.setDate(LocalDateTime.now());
+        p.setId(4);
+        System.out.println(addPost(p, s.getFaculty()));
+        p.setAuthour(1);
+        p.setDate(LocalDateTime.now());
+        p.setId(5);
         System.out.println(addPost(p, s.getFaculty()));
         System.out.println();
         System.out.println("==========");
@@ -61,11 +79,13 @@ public class Solution {
         System.out.println("makeAsFriends");
         System.out.println("==========");
         System.out.println(makeAsFriends(1, 2));
+        System.out.println(makeAsFriends(2, 20));
         System.out.println(makeAsFriends(2, 1));
         System.out.println(makeAsFriends(1, 3));
         System.out.println(makeAsFriends(3, 1));
         System.out.println(makeAsFriends(1, 2));
-
+        System.out.println(makeAsFriends(1, 2));
+        System.out.println(makeAsFriends(2, 20));
 
         System.out.println();
         System.out.println("============");
@@ -81,16 +101,29 @@ public class Solution {
         System.out.println(makeAsNotFriends(2, 1));
         System.out.println(makeAsNotFriends(1, 2));
         System.out.println(makeAsFriends(1, 2));
+        System.out.println(makeAsFriends(2, 20));
+        System.out.println(makeAsFriends(2, 21));
+
+        System.out.println();
         System.out.println("============");
-        System.out.println("feed");
+        System.out.println("feed1");
         System.out.println("==========");
         for (Post post : getStudentFeed(2)) {
             System.out.println(post.toString());
         }
+        System.out.println();
+        System.out.println("============");
+        System.out.println("group feed");
+        System.out.println("==========");
         for (Post post : getGroupFeed(s.getFaculty())) {
             System.out.println(post.toString());
         }
-
+        System.out.println("============");
+        System.out.println("getPeopleYouMayKnowList");
+        System.out.println("==========");
+        for (Student stud : getPeopleYouMayKnowList(1)) {
+            System.out.println(stud.toString());
+        }
     }
 
     public static void createTables() {
@@ -962,7 +995,8 @@ public class Solution {
         try {
             pstmt = connection.prepareStatement("SELECT id, author, (SELECT COUNT(*) FROM Likes WHERE post_id = id), contents, pdate " +
                     "FROM Posts " +
-                    "   WHERE author = (SELECT id2 FROM Friends WHERE  id1 = (?))");
+                    "   WHERE author IN (SELECT id2 FROM Friends WHERE  id1 = (?))" +
+                    "ORDER BY 5 DESC, 3 DESC ");
             pstmt.setInt(1, id);
             ResultSet results = pstmt.executeQuery();
 
@@ -1005,7 +1039,8 @@ public class Solution {
         try {
             pstmt = connection.prepareStatement("SELECT id, author, (SELECT COUNT(*) FROM Likes WHERE post_id = id), contents, pdate " +
                     "FROM Posts " +
-                    "   WHERE group_id = (SELECT id FROM Groups WHERE  name = (?))");
+                    "   WHERE group_id = (SELECT id FROM Groups WHERE  name = (?))" +
+                    "ORDER BY 5 DESC, 3 DESC ");
             pstmt.setString(1, groupName);
             ResultSet results = pstmt.executeQuery();
 
@@ -1045,9 +1080,55 @@ public class Solution {
      * input: student
      * output: an ArrayList containing the students. In case of an error, return an empty ArrayList
      */
-
     public static ArrayList<Student> getPeopleYouMayKnowList(Integer studentId) {
-        return null;
+
+        Connection connection = DBConnector.getConnection();
+        PreparedStatement pstmt = null;
+        ArrayList<Student> students = new ArrayList<>();
+        try {
+            pstmt = connection.prepareStatement("" +
+                    "SELECT id, name, (SELECT name From Groups WHERE id = Students.faculty_id) FROM Students WHERE id IN " +
+                    "(SELECT id2 FROM Friends" +
+                    "   WHERE id1 IN (" +
+                    "          SELECT id2 " +
+                    "                  FROM Friends " +
+                    "                  WHERE id1 = (?)) AND id2 <> (?)" +
+                    "                  AND EXISTS (" +
+                    "                       SELECT group_id " +
+                    "                           FROM Members " +
+                    "                           WHERE student_id = ? AND group_id IN (SELECT group_id FROM Members WHERE student_id = id2)" +
+                    "                )" +
+                    ")");
+
+            pstmt.setInt(1, studentId);
+            pstmt.setInt(2, studentId);
+            pstmt.setInt(3, studentId);
+            ResultSet results = pstmt.executeQuery();
+
+
+            while (results.next()) {
+                Student s = new Student();
+                s.setId(results.getInt(1));
+                s.setName(results.getString(2));
+                s.setFaculty(results.getString(3));
+                students.add(s);
+            }
+
+            results.close();
+
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return new ArrayList<>();
+        } finally {
+            try {
+                pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return new ArrayList<>();
+            }
+        }
+        return students;
     }
 
     /**
