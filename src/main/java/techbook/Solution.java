@@ -199,56 +199,6 @@ public class Solution {
         }
     }
 
-    /* Will return group id in case of success, otherwise - throw SQLException */
-    private static Long getGroupId(Connection connection, String group_name) throws SQLException {
-        PreparedStatement pstmt = connection.prepareStatement("SELECT id FROM Groups WHERE  name = (?)");
-        pstmt.setString(1, group_name);
-
-        ResultSet results = null;
-        try {
-            results = pstmt.executeQuery();
-            results.next();
-            Long group_id = results.getLong(1);
-            return group_id;
-        } finally {
-            pstmt.close();
-        }
-    }
-
-    /*
-     * Creates group, returns auto-generated id in case of success. Otherwise - exception is thrown
-     */
-    private static Long createGroup(Connection connection, String group_name) throws SQLException {
-        PreparedStatement pstmt = null;
-        Long group_id = null;
-
-        try {
-            pstmt = connection.prepareStatement(
-                    "INSERT INTO Groups (name) VALUES (?);",
-                    Statement.RETURN_GENERATED_KEYS);
-            pstmt.setString(1, group_name);
-            pstmt.execute();
-
-            ResultSet generatedKeys = pstmt.getGeneratedKeys();
-            if (generatedKeys.next()) {
-                group_id = generatedKeys.getLong(1);
-                return group_id;
-            } else {
-                group_id = getGroupId(connection, group_name);
-            }
-        } catch (SQLException e) {
-            if (sqlStateMatches(e, UNIQUE_VIOLATION)) { // Group existed before - return it's id
-                group_id = getGroupId(connection, group_name);
-            } else {
-                throw e;
-            }
-        } finally {
-            close_statement(pstmt);
-        }
-
-        return group_id;
-    }
-
     /**
      * Deletes a student from the database
      * Deleting a student will cause him\her to leave their group, delete their posts and likes history, and friendships
@@ -274,20 +224,20 @@ public class Solution {
         } catch (SQLException e) {
             return ReturnValue.ERROR;
         } finally {
-            ReturnValue result = finalize(connection, pstmt);
-            if (!result.equals(ReturnValue.OK))
-                return result;
+            try {
+                finalize(connection, pstmt);
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
         }
         return ReturnValue.OK;
     }
-
 
     /**
      * Returns the student profile by the given id
      * input: student id
      * output: The student profile in case the student exists. BadStudent otherwise
      */
-
     public static Student getStudentProfile(Integer studentId) {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
@@ -311,12 +261,10 @@ public class Solution {
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
-            close_statement(pstmt);
-            close_connection(connection);
+            finalizePrintExceptionStack(connection, pstmt);
         }
         return Student.badStudent();
     }
-
 
     /**
      * Updates a student faculty to the new given value.
@@ -331,7 +279,6 @@ public class Solution {
     public static ReturnValue updateStudentFaculty(Student student) {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
-        ReturnValue result = null;
         try {
             pstmt = connection.prepareStatement(
                     "UPDATE Students " +
@@ -342,7 +289,7 @@ public class Solution {
 
             // join new faculty (if nonexistent - will be created)
             // if student doesn't exist - joinGroup will catch this.
-            result = joinGroup(student.getId(), student.getFaculty());
+            ReturnValue result = joinGroup(student.getId(), student.getFaculty());
             if (!result.equals(ReturnValue.OK))
                 return result;
 
@@ -351,13 +298,14 @@ public class Solution {
         } catch (SQLException e) {
             return ReturnValue.ERROR;
         } finally {
-            result = finalize(connection, pstmt);
-            if (!result.equals(ReturnValue.OK))
-                return result;
+            try {
+                finalize(connection, pstmt);
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
         }
         return ReturnValue.OK;
     }
-
 
     /**
      * Adds a post to the database, and adds it to the relevant group if  groupName is given (i.e., it is not null)
@@ -404,13 +352,14 @@ public class Solution {
         } catch (SQLException e) {
             return sqlExceptionToReturnValue(e);
         } finally {
-            ReturnValue result = finalize(connection, pstmt);
-            if (!result.equals(ReturnValue.OK))
-                return result;
+            try {
+                finalize(connection, pstmt);
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
         }
         return ReturnValue.OK;
     }
-
 
     /**
      * Deletes a post from the database
@@ -436,13 +385,14 @@ public class Solution {
         } catch (SQLException e) {
             return ReturnValue.ERROR;
         } finally {
-            ReturnValue result = finalize(connection, pstmt);
-            if (!result.equals(ReturnValue.OK))
-                return result;
+            try {
+                finalize(connection, pstmt);
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
         }
         return ReturnValue.OK;
     }
-
 
     /**
      * returns the post by given id
@@ -512,13 +462,14 @@ public class Solution {
                 return ReturnValue.ERROR;
             }
         } finally {
-            ReturnValue result = finalize(connection, pstmt);
-            if (!result.equals(ReturnValue.OK))
-                return result;
+            try {
+                finalize(connection, pstmt);
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
         }
         return ReturnValue.OK;
     }
-
 
     /**
      * Establishes a friendship relationship between two different students
@@ -530,7 +481,6 @@ public class Solution {
      * BAD_PARAMS in case of illegal parameters
      * ERROR in case of database error
      */
-
     public static ReturnValue makeAsFriends(Integer studentId1, Integer studentId2) {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
@@ -546,13 +496,14 @@ public class Solution {
         } catch (SQLException e) {
             return sqlExceptionToReturnValue(e);
         } finally {
-            ReturnValue result = finalize(connection, pstmt);
-            if (!result.equals(ReturnValue.OK))
-                return result;
+            try {
+                finalize(connection, pstmt);
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
         }
         return ReturnValue.OK;
     }
-
 
     /**
      * Removes a friendship connection of two students
@@ -581,9 +532,11 @@ public class Solution {
         } catch (SQLException e) {
             return ReturnValue.ERROR;
         } finally {
-            ReturnValue result = finalize(connection, pstmt);
-            if (!result.equals(ReturnValue.OK))
-                return result;
+            try {
+                finalize(connection, pstmt);
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
         }
         return ReturnValue.OK;
     }
@@ -622,9 +575,11 @@ public class Solution {
         } catch (SQLException e) {
             return sqlExceptionToReturnValue(e);
         } finally {
-            ReturnValue result = finalize(connection, pstmt);
-            if (!result.equals(ReturnValue.OK))
-                return result;
+            try {
+                finalize(connection, pstmt);
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
         }
         return ReturnValue.OK;
     }
@@ -654,9 +609,11 @@ public class Solution {
         } catch (SQLException e) {
             return ReturnValue.ERROR;
         } finally {
-            ReturnValue result = finalize(connection, pstmt);
-            if (!result.equals(ReturnValue.OK))
-                return result;
+            try {
+                finalize(connection, pstmt);
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
         }
         return ReturnValue.OK;
     }
@@ -686,9 +643,11 @@ public class Solution {
         } catch (SQLException e) {
             return sqlExceptionToReturnValue(e);
         } finally {
-            ReturnValue result = finalize(connection, pstmt);
-            if (!result.equals(ReturnValue.OK))
-                return result;
+            try {
+                finalize(connection, pstmt);
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
         }
         return ReturnValue.OK;
     }
@@ -720,13 +679,14 @@ public class Solution {
         } catch (SQLException e) {
             return ReturnValue.ERROR;
         } finally {
-            ReturnValue result = finalize(connection, pstmt);
-            if (!result.equals(ReturnValue.OK))
-                return result;
+            try {
+                finalize(connection, pstmt);
+            } catch (SQLException e) {
+                return ReturnValue.ERROR;
+            }
         }
         return ReturnValue.OK;
     }
-
 
     /**
      * Gets a list of personal posts posted by a student and his\her friends. Feed should be ordered by date and likes, both in descending order.
@@ -738,15 +698,15 @@ public class Solution {
         PreparedStatement pstmt = null;
         Feed feed = new Feed();
         try {
-            pstmt = connection.prepareStatement("SELECT id, author, (SELECT COUNT(*) FROM Likes WHERE post_id = id) AS likes, contents, pdate " +
+            pstmt = connection.prepareStatement(
+                    "SELECT id, author, (SELECT COUNT(*) FROM Likes WHERE post_id = id) AS n_likes, contents, pdate " +
                     "FROM Posts " +
                     "   WHERE author IN (SELECT id2 FROM Friends WHERE  id1 = (?))" +
                     "       OR author=?" +
-                    "ORDER BY pdate DESC, likes DESC ");
+                    "ORDER BY pdate DESC, n_likes DESC ");
             pstmt.setInt(1, id);
             pstmt.setInt(2, id);
             ResultSet results = pstmt.executeQuery();
-
 
             while (results.next()) {
                 Post p = new Post();
@@ -760,17 +720,11 @@ public class Solution {
 
             results.close();
 
-
         } catch (SQLException e) {
             return new Feed();
         } finally {
             try {
-                pstmt.close();
-            } catch (SQLException e) {
-                return new Feed();
-            }
-            try {
-                connection.close();
+                finalize(connection, pstmt);
             } catch (SQLException e) {
                 return new Feed();
             }
@@ -783,19 +737,18 @@ public class Solution {
      * input: group
      * output: Feed the containing the relevant posts. In case of an error, return an empty feed
      */
-
     public static Feed getGroupFeed(String groupName) {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         Feed feed = new Feed();
         try {
-            pstmt = connection.prepareStatement("SELECT id, author, (SELECT COUNT(*) FROM Likes WHERE post_id = id), contents, pdate " +
+            pstmt = connection.prepareStatement(
+                    "SELECT id, author, (SELECT COUNT(*) FROM Likes WHERE post_id = id) AS n_likes, contents, pdate " +
                     "FROM Posts " +
                     "   WHERE group_id = (SELECT id FROM Groups WHERE  name = (?))" +
-                    "ORDER BY 5 DESC, 3 DESC ");
+                    "   ORDER BY pdate DESC, n_likes DESC ");
             pstmt.setString(1, groupName);
             ResultSet results = pstmt.executeQuery();
-
 
             while (results.next()) {
                 Post p = new Post();
@@ -809,17 +762,11 @@ public class Solution {
 
             results.close();
 
-
         } catch (SQLException e) {
             return new Feed();
         } finally {
             try {
-                pstmt.close();
-            } catch (SQLException e) {
-                return new Feed();
-            }
-            try {
-                connection.close();
+                finalize(connection, pstmt);
             } catch (SQLException e) {
                 return new Feed();
             }
@@ -865,7 +812,6 @@ public class Solution {
             pstmt.setInt(4, studentId);
             ResultSet results = pstmt.executeQuery();
 
-
             while (results.next()) {
                 Student s = new Student();
                 s.setId(results.getInt(1));
@@ -876,21 +822,13 @@ public class Solution {
 
             results.close();
 
-
         } catch (SQLException e) {
             e.printStackTrace();
             return new ArrayList<>();
         } finally {
             try {
-                pstmt.close();
+                finalize(connection, pstmt);
             } catch (SQLException e) {
-                e.printStackTrace();
-                return new ArrayList<>();
-            }
-            try {
-                connection.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
                 return new ArrayList<>();
             }
         }
@@ -941,12 +879,7 @@ public class Solution {
             return new ArrayList<>();
         } finally {
             try {
-                pstmt.close();
-            } catch (SQLException e) {
-                return new ArrayList<>();
-            }
-            try {
-                connection.close();
+                finalize(connection, pstmt);
             } catch (SQLException e) {
                 return new ArrayList<>();
             }
@@ -954,25 +887,63 @@ public class Solution {
         return pairs;
     }
 
-    private static boolean sqlStateMatches(SQLException e, PostgreSQLErrorCodes errorCode) {
-        String errorString = Integer.toString(errorCode.getValue());
-        return e.getSQLState().equals(errorString);
+    /*
+     * Creates group, returns auto-generated id in case of success. Otherwise - exception is thrown
+     */
+    private static Long createGroup(Connection connection, String group_name) throws SQLException {
+        PreparedStatement pstmt = null;
+        Long group_id = null;
+
+        try {
+            pstmt = connection.prepareStatement(
+                    "INSERT INTO Groups (name) VALUES (?);",
+                    Statement.RETURN_GENERATED_KEYS);
+            pstmt.setString(1, group_name);
+            pstmt.execute();
+
+            ResultSet generatedKeys = pstmt.getGeneratedKeys();
+            if (generatedKeys.next()) {
+                group_id = generatedKeys.getLong(1);
+                return group_id;
+            } else {
+                group_id = getGroupId(connection, group_name);
+            }
+        } catch (SQLException e) {
+            if (sqlStateMatches(e, UNIQUE_VIOLATION)) { // Group existed before - return it's id
+                group_id = getGroupId(connection, group_name);
+            } else {
+                throw e;
+            }
+        } finally {
+            close_statement(pstmt);
+        }
+        return group_id;
     }
 
-    private static ReturnValue finalize(Connection connection, PreparedStatement pstmt) {
+    /* Returns group id in case of success, otherwise throws SQLException */
+    private static Long getGroupId(Connection connection, String group_name) throws SQLException {
+        PreparedStatement pstmt = connection.prepareStatement("SELECT id FROM Groups WHERE  name = (?)");
+        pstmt.setString(1, group_name);
+
+        ResultSet results = null;
+        try {
+            results = pstmt.executeQuery();
+            results.next();
+            Long group_id = results.getLong(1);
+            return group_id;
+        } finally {
+            pstmt.close();
+        }
+    }
+
+    private static void finalize(Connection connection, PreparedStatement pstmt) throws SQLException {
         try {
             if (pstmt != null)
                 pstmt.close();
-        } catch (SQLException e) {
-            return ReturnValue.ERROR;
-        }
-        try {
+        } finally {
             if (connection!=null)
                 connection.close();
-        } catch (SQLException e) {
-            return ReturnValue.ERROR;
         }
-        return ReturnValue.OK;
     }
 
     private static void finalizePrintExceptionStack(Connection connection, PreparedStatement pstmt) {
@@ -1007,6 +978,11 @@ public class Solution {
         } else {
             return ReturnValue.ERROR;
         }
+    }
+
+    private static boolean sqlStateMatches(SQLException e, PostgreSQLErrorCodes errorCode) {
+        String errorString = Integer.toString(errorCode.getValue());
+        return e.getSQLState().equals(errorString);
     }
 
 }
