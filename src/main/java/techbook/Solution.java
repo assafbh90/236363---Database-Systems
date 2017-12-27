@@ -5,126 +5,11 @@ import techbook.data.DBConnector;
 import techbook.data.PostgreSQLErrorCodes;
 
 import java.sql.*;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 
 import static techbook.data.PostgreSQLErrorCodes.*;
 
 public class Solution {
-
-    public static void main(String[] args) {
-
-        clearTables();
-        dropTables();
-        createTables();
-//        dropTables();
-        Student s = new Student();
-        s.setId(1);
-        s.setFaculty("assaf");
-        s.setName("moshe");
-        System.out.println(addStudent(s));
-
-        Student s1 = new Student();
-        s1.setId(2);
-        s1.setFaculty("tali");
-        s1.setName("yosi");
-        System.out.println(addStudent(s1));
-
-        Student s2 = new Student();
-        s2.setId(21);
-        s2.setFaculty("assaf");
-        s2.setName("moshemoshe");
-        System.out.println(addStudent(s2));
-        s2.setId(20);
-        s2.setFaculty("assaf1");
-        s2.setName("moshemosheiiiii");
-        System.out.println(addStudent(s2));
-
-        System.out.println(getStudentProfile(1));
-        Post p = new Post();
-        p.setAuthour(1);
-        p.setDate(LocalDateTime.now());
-        p.setId(3);
-        p.setLikes(3);
-        p.setText("asdfsdafdsf");
-        System.out.println("print posts");
-        System.out.println(addPost(p, s.getFaculty()));
-        p.setAuthour(1);
-        p.setDate(LocalDateTime.now());
-        p.setId(4);
-        System.out.println(addPost(p, s.getFaculty()));
-        p.setAuthour(1);
-        p.setDate(LocalDateTime.now());
-        p.setId(5);
-        System.out.println(addPost(p, s.getFaculty()));
-        System.out.println();
-        System.out.println("==========");
-        System.out.println("likePost");
-        System.out.println("===========");
-        System.out.println(likePost(1, 3));
-        System.out.println(likePost(1, 3));
-
-        System.out.println();
-        System.out.println("===========");
-        System.out.println("unlikePost");
-        System.out.println("==============");
-        System.out.println(unlikePost(2, 3));
-        System.out.println(unlikePost(1, 3));
-        System.out.println(unlikePost(1, 3));
-        System.out.println(likePost(1, 3));
-        System.out.println(likePost(2, 3));
-
-        System.out.println();
-        System.out.println("============");
-        System.out.println("makeAsFriends");
-        System.out.println("==========");
-        System.out.println(makeAsFriends(1, 2));
-        System.out.println(makeAsFriends(2, 20));
-        System.out.println(makeAsFriends(2, 1));
-        System.out.println(makeAsFriends(1, 3));
-        System.out.println(makeAsFriends(3, 1));
-        System.out.println(makeAsFriends(1, 2));
-        System.out.println(makeAsFriends(1, 2));
-        System.out.println(makeAsFriends(2, 20));
-
-        System.out.println();
-        System.out.println("============");
-        System.out.println("makeAsNotFriends");
-        System.out.println("==========");
-        System.out.println(makeAsNotFriends(1, 3));
-        System.out.println(makeAsNotFriends(3, 1));
-        System.out.println(makeAsNotFriends(1, 2));
-        System.out.println(makeAsNotFriends(2, 1));
-        System.out.println(makeAsNotFriends(1, 2));
-
-        System.out.println(makeAsFriends(1, 2));
-        System.out.println(makeAsNotFriends(2, 1));
-        System.out.println(makeAsNotFriends(1, 2));
-        System.out.println(makeAsFriends(1, 2));
-        System.out.println(makeAsFriends(2, 20));
-        System.out.println(makeAsFriends(2, 21));
-
-        System.out.println();
-        System.out.println("============");
-        System.out.println("feed1");
-        System.out.println("==========");
-        for (Post post : getStudentFeed(2)) {
-            System.out.println(post.toString());
-        }
-        System.out.println();
-        System.out.println("============");
-        System.out.println("group feed");
-        System.out.println("==========");
-        for (Post post : getGroupFeed(s.getFaculty())) {
-            System.out.println(post.toString());
-        }
-        System.out.println("============");
-        System.out.println("getPeopleYouMayKnowList");
-        System.out.println("==========");
-        for (Student stud : getPeopleYouMayKnowList(1)) {
-            System.out.println(stud.toString());
-        }
-    }
 
     public static void createTables() {
         Connection connection = DBConnector.getConnection();
@@ -137,72 +22,75 @@ public class Solution {
                 "    UNIQUE (name)\n" +
                 ")";
 
-        String students_query = "CREATE TABLE public.Students\n" +
+        String students_query = "CREATE TABLE Students\n" +
                 "(\n" +
                 "    id integer NOT NULL,\n" +
-                "    name text COLLATE pg_catalog.\"default\" NOT NULL,\n" +
+                "    name text NOT NULL,\n" +
                 "    faculty_id integer NOT NULL,\n" +
                 "    CONSTRAINT student_pkey PRIMARY KEY (id),\n" +
                 "    CONSTRAINT positive_id CHECK (id > 0),\n" +
                 "    CONSTRAINT faculty_exists FOREIGN KEY (faculty_id)\n" +
-                "    REFERENCES public.Groups (id) MATCH SIMPLE\n" +
-                "ON UPDATE NO ACTION\n" +
-                "ON DELETE CASCADE\n" +
+                "       REFERENCES Groups (id) MATCH SIMPLE\n" +
+                "       ON UPDATE NO ACTION\n" +
+                "       ON DELETE CASCADE\n" +
                 ")";
 
-        String members_query = "CREATE TABLE public.Members\n" +
+        String members_query = "CREATE TABLE Members\n" +
                 "(\n" +
                 "    group_id integer NOT NULL,\n" +
                 "    student_id integer NOT NULL,\n" +
                 "    CONSTRAINT unique_pairs UNIQUE (student_id, group_id),\n" +
-                "    CONSTRAINT group_exists FOREIGN KEY (group_id)\n" +
-                "        REFERENCES public.Groups (id) MATCH SIMPLE\n" +
-                "        ON UPDATE NO ACTION\n" +
-                "        ON DELETE CASCADE, \n" +
                 "    CONSTRAINT student_exists FOREIGN KEY (student_id)\n" +
-                "        REFERENCES public.Students (id) MATCH SIMPLE\n" +
+                "        REFERENCES Students (id) MATCH SIMPLE\n" +
                 "        ON UPDATE NO ACTION\n" +
-                "        ON DELETE CASCADE\n" +
+                "        ON DELETE CASCADE,\n" +
+                "    CONSTRAINT group_exists FOREIGN KEY (group_id)\n" +
+                "        REFERENCES Groups (id) MATCH SIMPLE\n" +
+                "        ON UPDATE NO ACTION\n" +
+                "        ON DELETE CASCADE \n" +
                 ")";
 
-        String friends_query = "CREATE TABLE public.Friends\n" +
+        String friends_query = "CREATE TABLE Friends\n" +
                 "(\n" +
                 "    id1 integer NOT NULL,\n" +
                 "    id2 integer NOT NULL,\n" +
                 "    CONSTRAINT student1_exists FOREIGN KEY (id1)\n" +
-                "        REFERENCES public.Students (id) MATCH SIMPLE\n" +
+                "        REFERENCES Students (id) MATCH SIMPLE\n" +
                 "        ON UPDATE NO ACTION\n" +
                 "        ON DELETE CASCADE,\n" +
                 "    CONSTRAINT student2_exists FOREIGN KEY (id2)\n" +
-                "        REFERENCES public.Students (id) MATCH SIMPLE\n" +
+                "        REFERENCES Students (id) MATCH SIMPLE\n" +
                 "        ON UPDATE NO ACTION\n" +
-                "        ON DELETE CASCADE\n" +
+                "        ON DELETE CASCADE,\n" +
+                "   PRIMARY KEY (id1, id2)" +
                 "); ALTER TABLE Friends add CONSTRAINT not_self_friend CHECK (id1 <> id2)";
 
-        String likes_query = "CREATE TABLE public.Likes\n" +
+        String likes_query = "CREATE TABLE Likes\n" +
                 "(\n" +
                 "    post_id integer NOT NULL,\n" +
                 "    student_id integer NOT NULL,\n" +
                 "    CONSTRAINT student_exists FOREIGN KEY (student_id)\n" +
-                "        REFERENCES public.Students (id) MATCH SIMPLE\n" +
+                "        REFERENCES Students (id) MATCH SIMPLE\n" +
                 "        ON UPDATE NO ACTION\n" +
                 "        ON DELETE CASCADE,\n" +
                 "    CONSTRAINT post_exists FOREIGN KEY (post_id)\n" +
-                "        REFERENCES public.Posts (id) MATCH SIMPLE\n" +
+                "        REFERENCES Posts (id) MATCH SIMPLE\n" +
                 "        ON UPDATE NO ACTION\n" +
-                "        ON DELETE CASCADE\n" +
+                "        ON DELETE CASCADE,\n" +
+                "   PRIMARY KEY (post_id, student_id)" +
                 ")";
 
-
+        /* Note: group_exists constraint is not enforced if group_id=NULL.
+         * Which means group_id can be either legal group id or NULL, which is also legal (public posts). */
         String posts_query = "CREATE TABLE Posts\n" +
                 "(\n" +
                 "    id integer NOT NULL,\n" +
                 "    author integer NOT NULL,\n" +
                 "    group_id integer,\n" +
                 "    contents text NOT NULL,\n" +
-                "    pdate timestamp ,\n" +
+                "    pdate timestamp  NOT NULL,\n" +
                 "    PRIMARY KEY (id),\n" +
-                "    CHECK (id >= 0),\n" +
+                "    CHECK (id > 0),\n" +
                 "    CONSTRAINT student_exists FOREIGN KEY (author) REFERENCES Students(id) ON DELETE CASCADE,\n" +
                 "    CONSTRAINT group_exists FOREIGN KEY (group_id) REFERENCES Groups(id) ON DELETE CASCADE\n" +
                 ")";
@@ -214,11 +102,7 @@ public class Solution {
         queryStatement(connection, posts_query);
         queryStatement(connection, likes_query);
 
-        try {
-            connection.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        close_connection(connection);
     }
 
     public static void clearTables() {
@@ -238,11 +122,7 @@ public class Solution {
         queryStatement(connection, delete_likes);
         queryStatement(connection, delete_posts);
 
-        try {
-            connection.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        close_connection(connection);
     }
 
     public static void dropTables() {
@@ -262,11 +142,7 @@ public class Solution {
         queryStatement(connection, drop_likes);
         queryStatement(connection, drop_posts);
 
-        try {
-            connection.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        close_connection(connection);
     }
 
     private static void queryStatement(Connection connection, String query) {
@@ -277,14 +153,9 @@ public class Solution {
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
-            try {
-                pstmt.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            close_statement(pstmt);
         }
     }
-
 
     /**
      * Adds a student to the database. The student should join to the faculty’s group
@@ -296,109 +167,87 @@ public class Solution {
      * ERROR in case of database error
      */
     public static ReturnValue addStudent(Student student) {
-
         Connection connection = DBConnector.getConnection();
-        Long group_id = createGroup(connection, student.getFaculty());
-
-        ReturnValue returnValue = insertStudent(connection, student, group_id);
-
-        joinGroup(student.getId(), student.getFaculty());
 
         try {
-            connection.close();
+            Long group_id = createGroup(connection, student.getFaculty());
+            insertStudent(connection, student, group_id);
+            joinGroup(student.getId(), student.getFaculty());
         } catch (SQLException e) {
-            return ReturnValue.ERROR;
-        }
-        return returnValue;
-
-    }
-
-    private static ReturnValue insertStudent(Connection connection, Student student, Long group_id) {
-        PreparedStatement pstmt = null;
-        try {
-            pstmt = connection.prepareStatement("INSERT INTO Students (id, name, faculty_id)" +
-                    "   SELECT ?, ?, ?\n" +
-                    "WHERE\n" +
-                    "    NOT EXISTS (\n" +
-                    "        SELECT * FROM Students WHERE id = (?)\n" +
-                    "    )");
-            pstmt.setInt(1, student.getId());
-            pstmt.setString(2, student.getName());
-            pstmt.setLong(3, group_id);
-            pstmt.setLong(4, student.getId());
-            int affectedRows = pstmt.executeUpdate();
-            if (affectedRows == 0) {
-                return ReturnValue.ALREADY_EXISTS;
-            }
-
-        } catch (SQLException e) {
-            if (Integer.valueOf(e.getSQLState()) == CHECK_VIOLATION.getValue()) {
-                return ReturnValue.BAD_PARAMS;
-            } else {
-                return ReturnValue.ERROR;
-            }
+            return sqlExceptionToReturnValue(e);
         } finally {
             try {
-                pstmt.close();
+                connection.close();
             } catch (SQLException e) {
-                if (Integer.valueOf(e.getSQLState()) == CHECK_VIOLATION.getValue()) {
-                    return ReturnValue.BAD_PARAMS;
-                } else {
-                    return ReturnValue.ERROR;
-                }
+                return ReturnValue.ERROR;
             }
         }
         return ReturnValue.OK;
     }
 
-    private static Long createGroup(Connection connection, String group_name) {
+    private static void insertStudent(Connection connection, Student student, Long group_id) throws SQLException {
         PreparedStatement pstmt = null;
-        Long groud_id = Long.valueOf(-1);
-
         try {
-            pstmt = connection.prepareStatement("INSERT INTO Groups (name)" +
-                    " SELECT (?)\n" +
-                    "WHERE\n" +
-                    "    NOT EXISTS (\n" +
-                    "        SELECT name FROM Groups WHERE name = (?)\n" +
-                    "    )", Statement.RETURN_GENERATED_KEYS);
-            pstmt.setString(1, group_name);
-            pstmt.setString(2, group_name);
-            pstmt.execute();
-
-            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    groud_id = generatedKeys.getLong(1);
-                } else {
-                    try {
-                        pstmt.close();
-                    } catch (SQLException e) {
-                        e.printStackTrace();
-                    }
-                    pstmt = connection.prepareStatement("SELECT id FROM Groups WHERE  name = (?)");
-                    pstmt.setString(1, group_name);
-                    ResultSet results = pstmt.executeQuery();
-
-                    if (results.next()) {
-                        groud_id = results.getLong(1);
-                    }
-
-                    results.close();
-                    return groud_id;
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
+            pstmt = connection.prepareStatement("INSERT INTO Students (id, name, faculty_id)" +
+                    "   VALUES (?, ?, ?);");
+            pstmt.setInt(1, student.getId());
+            pstmt.setString(2, student.getName());
+            pstmt.setLong(3, group_id);
+            pstmt.executeUpdate();
         } finally {
-            try {
-                pstmt.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            pstmt.close();
         }
-        return groud_id;
     }
 
+    /* Will return group id in case of success, otherwise - throw SQLException */
+    private static Long getGroupId(Connection connection, String group_name) throws SQLException {
+        PreparedStatement pstmt = connection.prepareStatement("SELECT id FROM Groups WHERE  name = (?)");
+        pstmt.setString(1, group_name);
+
+        ResultSet results = null;
+        try {
+            results = pstmt.executeQuery();
+            results.next();
+            Long group_id = results.getLong(1);
+            return group_id;
+        } finally {
+            pstmt.close();
+        }
+    }
+
+    /*
+     * Creates group, returns auto-generated id in case of success. Otherwise - exception is thrown
+     */
+    private static Long createGroup(Connection connection, String group_name) throws SQLException {
+        PreparedStatement pstmt = null;
+        Long group_id = null;
+
+        try {
+            pstmt = connection.prepareStatement(
+                    "INSERT INTO Groups (name) VALUES (?);",
+                    Statement.RETURN_GENERATED_KEYS);
+            pstmt.setString(1, group_name);
+            pstmt.execute();
+
+            ResultSet generatedKeys = pstmt.getGeneratedKeys();
+            if (generatedKeys.next()) {
+                group_id = generatedKeys.getLong(1);
+                return group_id;
+            } else {
+                group_id = getGroupId(connection, group_name);
+            }
+        } catch (SQLException e) {
+            if (sqlStateMatches(e, UNIQUE_VIOLATION)) { // Group existed before - return it's id
+                group_id = getGroupId(connection, group_name);
+            } else {
+                throw e;
+            }
+        } finally {
+            close_statement(pstmt);
+        }
+
+        return group_id;
+    }
 
     /**
      * Deletes a student from the database
@@ -409,14 +258,13 @@ public class Solution {
      * NOT_EXISTS if student does not exist
      * ERROR in case of database error
      */
-    public static ReturnValue deleteStundet(Integer studentId) {
+    public static ReturnValue deleteStudent(Integer studentId) {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
             pstmt = connection.prepareStatement(
                     "DELETE FROM Students " +
-
-                            "where id = ?");
+                            "WHERE id = ?");
             pstmt.setInt(1, studentId);
 
             int affectedRows = pstmt.executeUpdate();
@@ -426,16 +274,9 @@ public class Solution {
         } catch (SQLException e) {
             return ReturnValue.ERROR;
         } finally {
-            try {
-                pstmt.close();
-            } catch (SQLException e) {
-                return ReturnValue.ERROR;
-            }
-            try {
-                connection.close();
-            } catch (SQLException e) {
-                return ReturnValue.ERROR;
-            }
+            ReturnValue result = finalize(connection, pstmt);
+            if (!result.equals(ReturnValue.OK))
+                return result;
         }
         return ReturnValue.OK;
     }
@@ -470,16 +311,8 @@ public class Solution {
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
-            try {
-                pstmt.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-            try {
-                connection.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
+            close_statement(pstmt);
+            close_connection(connection);
         }
         return Student.badStudent();
     }
@@ -512,6 +345,7 @@ public class Solution {
             result = joinGroup(student.getId(), student.getFaculty());
             if (!result.equals(ReturnValue.OK))
                 return result;
+
             pstmt.executeUpdate();
 
         } catch (SQLException e) {
@@ -540,32 +374,35 @@ public class Solution {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
-            pstmt = connection.prepareStatement(
-                    "INSERT INTO Posts(id, author, group_id, contents, pdate)\n" +
-                            "SELECT \n" +
-                            "    ?, ?, (SELECT id FROM Groups WHERE  name = (?)), ?, ? \n" +
-                            "    FROM Members WHERE student_id=? " +
-                            "    AND group_id=(SELECT id FROM Groups WHERE  name = (?));");
-            pstmt.setInt(1, post.getId());
-            pstmt.setInt(2, post.getAuthour());
-            pstmt.setString(3, groupName);
-            pstmt.setString(4, post.getText());
-            pstmt.setTimestamp(5, post.getTimeStamp());
-            pstmt.setInt(6, post.getAuthour());
-            pstmt.setString(7, groupName);
-
+            if (groupName != null) {
+                pstmt = connection.prepareStatement(
+                        "INSERT INTO Posts(id, author, group_id, contents, pdate)\n" +
+                                "SELECT \n" +
+                                "    ?, ?, (SELECT id FROM Groups WHERE  name = (?)), ?, ? \n" +
+                                "    FROM Members WHERE student_id=? " +
+                                "    AND group_id=(SELECT id FROM Groups WHERE  name = (?));");
+                pstmt.setInt(1, post.getId());
+                pstmt.setInt(2, post.getAuthor());
+                pstmt.setString(3, groupName);
+                pstmt.setString(4, post.getText());
+                pstmt.setTimestamp(5, post.getTimeStamp());
+                pstmt.setInt(6, post.getAuthor());
+                pstmt.setString(7, groupName);
+            } else {
+                pstmt = connection.prepareStatement(
+                        "INSERT INTO Posts(id, author, contents, pdate)\n" +
+                                "VALUES (?, ?, ?, ?);");
+                pstmt.setInt(1, post.getId());
+                pstmt.setInt(2, post.getAuthor());
+                pstmt.setString(3, post.getText());
+                pstmt.setTimestamp(4, post.getTimeStamp());
+            }
             int affectedRows = pstmt.executeUpdate();
             if (affectedRows == 0) {
                 return ReturnValue.NOT_EXISTS;
             }
         } catch (SQLException e) {
-            if (sqlStateMatches(e, FOREIGN_KEY_VIOLATION) || sqlStateMatches(e, NOT_NULL_VIOLATION)) {
-                return ReturnValue.NOT_EXISTS;
-            } else if (sqlStateMatches(e, UNIQUE_VIOLATION)) { // of post id
-                return ReturnValue.ALREADY_EXISTS;
-            } else {
-                return ReturnValue.ERROR;
-            }
+            return sqlExceptionToReturnValue(e);
         } finally {
             ReturnValue result = finalize(connection, pstmt);
             if (!result.equals(ReturnValue.OK))
@@ -627,7 +464,7 @@ public class Solution {
             Post p = new Post();
             if (results.next()) {
                 p.setId(results.getInt(1));
-                p.setAuthour(results.getInt(2));
+                p.setAuthor(results.getInt(2));
                 p.setText(results.getString(3));
                 p.setTimeStamp(results.getTimestamp(4));
                 p.setLikes(results.getInt(5));
@@ -656,26 +493,26 @@ public class Solution {
     public static ReturnValue updatePost(Post post) {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
-        ReturnValue result = null;
         try {
             pstmt = connection.prepareStatement(
                     "UPDATE Posts " +
-                            "SET text=?\n" +
-                            "WHERE id=? " +
-                            " AND author=? " +
-                            " AND pdate=?;");
-            pstmt.setInt(1, post.getId());
-            pstmt.setInt(2, post.getAuthour());
-            pstmt.setTimestamp(3, post.getTimeStamp());
+                            "SET contents=?\n" +
+                            "WHERE id=? " + ";");
+            pstmt.setString(1, post.getText());
+            pstmt.setInt(2, post.getId());
 
             int affectedRows = pstmt.executeUpdate();
             if (affectedRows == 0) {
                 return ReturnValue.NOT_EXISTS;
             }
         } catch (SQLException e) {
-            return ReturnValue.ERROR;
+            if (sqlStateMatches(e, CHECK_VIOLATION) || sqlStateMatches(e, NOT_NULL_VIOLATION)) {
+                return ReturnValue.BAD_PARAMS;
+            } else {
+                return ReturnValue.ERROR;
+            }
         } finally {
-            result = finalize(connection, pstmt);
+            ReturnValue result = finalize(connection, pstmt);
             if (!result.equals(ReturnValue.OK))
                 return result;
         }
@@ -697,45 +534,19 @@ public class Solution {
     public static ReturnValue makeAsFriends(Integer studentId1, Integer studentId2) {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
-        ReturnValue result = null;
         try {
             pstmt = connection.prepareStatement("INSERT INTO Friends (id1, id2) " +
-                    " SELECT ?, ?\n" +
-                    "WHERE\n" +
-                    "    NOT EXISTS (\n" +
-                    "        SELECT * FROM Friends WHERE id1 = (?) and id2 = (?)\n" +
-                    "    )" +
-                    "UNION ALL" +
-                    " SELECT ?, ?\n" +
-                    "WHERE\n" +
-                    "    NOT EXISTS (\n" +
-                    "        SELECT * FROM Friends WHERE id1 = (?) and id2 = (?)\n" +
-                    "    )");
+                    " VALUES (?, ?), (?, ?)");
             pstmt.setInt(1, studentId1);
             pstmt.setInt(2, studentId2);
-            pstmt.setInt(3, studentId1);
-            pstmt.setInt(4, studentId2);
+            pstmt.setInt(3, studentId2);
+            pstmt.setInt(4, studentId1);
 
-            pstmt.setInt(5, studentId2);
-            pstmt.setInt(6, studentId1);
-            pstmt.setInt(7, studentId2);
-            pstmt.setInt(8, studentId1);
-
-            int affectedRows = pstmt.executeUpdate();
-            if (affectedRows == 0) {
-                return ReturnValue.ALREADY_EXISTS;
-            }
-
+            pstmt.executeUpdate();
         } catch (SQLException e) {
-            if (sqlStateMatches(e, FOREIGN_KEY_VIOLATION) || sqlStateMatches(e, NOT_NULL_VIOLATION)) {
-                return ReturnValue.NOT_EXISTS;
-            } else if (sqlStateMatches(e, UNIQUE_VIOLATION)) { // of post id
-                return ReturnValue.ALREADY_EXISTS;
-            } else {
-                return ReturnValue.ERROR;
-            }
+            return sqlExceptionToReturnValue(e);
         } finally {
-            result = finalize(connection, pstmt);
+            ReturnValue result = finalize(connection, pstmt);
             if (!result.equals(ReturnValue.OK))
                 return result;
         }
@@ -770,16 +581,9 @@ public class Solution {
         } catch (SQLException e) {
             return ReturnValue.ERROR;
         } finally {
-            try {
-                pstmt.close();
-            } catch (SQLException e) {
-                return ReturnValue.ERROR;
-            }
-            try {
-                connection.close();
-            } catch (SQLException e) {
-                return ReturnValue.ERROR;
-            }
+            ReturnValue result = finalize(connection, pstmt);
+            if (!result.equals(ReturnValue.OK))
+                return result;
         }
         return ReturnValue.OK;
     }
@@ -794,41 +598,35 @@ public class Solution {
      * ERROR in case of database error
      */
     public static ReturnValue likePost(Integer studentId, Integer postId) {
-        //Likes(post_id, student_id);
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
-        ReturnValue result = null;
         try {
-            pstmt = connection.prepareStatement("INSERT INTO Likes (post_id, student_id)" +
-                    "   SELECT ?, ?\n" +
-                    "WHERE\n" +
-                    "    NOT EXISTS (\n" +
-                    "        SELECT * FROM Likes WHERE student_id = (?)\n" +
-                    "    )");
+            pstmt = connection.prepareStatement("INSERT INTO likes(post_id, student_id)\n" +
+                    "SELECT ?, ?\n" +
+                    "WHERE EXISTS (\n" +
+                    "        SELECT * FROM posts p ,members m \n" +
+                    "        -- student is member of a group, or post is public\n" +
+                    "        WHERE (m.group_id=p.group_id OR p.group_id IS NULL) \n" +
+                    "        -- post and student exist\n" +
+                    "        AND p.id=? AND m.student_id=? \n" +
+                    "    );");
             pstmt.setInt(1, postId);
             pstmt.setInt(2, studentId);
-            pstmt.setInt(3, studentId);
+            pstmt.setInt(3, postId);
+            pstmt.setInt(4, studentId);
 
             int affectedRows = pstmt.executeUpdate();
             if (affectedRows == 0) {
-                return ReturnValue.ALREADY_EXISTS;
-            }
-
-        } catch (SQLException e) {
-            if (sqlStateMatches(e, FOREIGN_KEY_VIOLATION) || sqlStateMatches(e, NOT_NULL_VIOLATION)) {
                 return ReturnValue.NOT_EXISTS;
-            } else if (sqlStateMatches(e, UNIQUE_VIOLATION)) { // of post id
-                return ReturnValue.ALREADY_EXISTS;
-            } else {
-                return ReturnValue.ERROR;
             }
+        } catch (SQLException e) {
+            return sqlExceptionToReturnValue(e);
         } finally {
-            result = finalize(connection, pstmt);
+            ReturnValue result = finalize(connection, pstmt);
             if (!result.equals(ReturnValue.OK))
                 return result;
         }
         return ReturnValue.OK;
-
     }
 
     /**
@@ -856,16 +654,9 @@ public class Solution {
         } catch (SQLException e) {
             return ReturnValue.ERROR;
         } finally {
-            try {
-                pstmt.close();
-            } catch (SQLException e) {
-                return ReturnValue.ERROR;
-            }
-            try {
-                connection.close();
-            } catch (SQLException e) {
-                return ReturnValue.ERROR;
-            }
+            ReturnValue result = finalize(connection, pstmt);
+            if (!result.equals(ReturnValue.OK))
+                return result;
         }
         return ReturnValue.OK;
     }
@@ -883,6 +674,7 @@ public class Solution {
         Connection connection = DBConnector.getConnection();
         PreparedStatement pstmt = null;
         try {
+            createGroup(connection, groupName); // if group exists - no effect
             pstmt = connection.prepareStatement(
                     "INSERT INTO Members(group_id, student_id) " +
                             "VALUES (" +
@@ -892,21 +684,7 @@ public class Solution {
             pstmt.setInt(2, studentId);
             pstmt.execute();
         } catch (SQLException e) {
-            System.out.println(e.getSQLState());
-            if (sqlStateMatches(e, FOREIGN_KEY_VIOLATION)) { // of student_id
-                return ReturnValue.NOT_EXISTS;
-            } else if (sqlStateMatches(e, UNIQUE_VIOLATION)) { // of tuple (group_id, student_id)
-                return ReturnValue.ALREADY_EXISTS;
-            } else if (sqlStateMatches(e, NOT_NULL_VIOLATION)) { // GROUP_NAME_TO_ID_QUERY returned NULL
-                createGroup(connection, groupName);
-                try {
-                    pstmt.execute();
-                } catch (SQLException e1) {
-                    return ReturnValue.ERROR;
-                }
-            } else {
-                return ReturnValue.ERROR;
-            }
+            return sqlExceptionToReturnValue(e);
         } finally {
             ReturnValue result = finalize(connection, pstmt);
             if (!result.equals(ReturnValue.OK))
@@ -960,18 +738,20 @@ public class Solution {
         PreparedStatement pstmt = null;
         Feed feed = new Feed();
         try {
-            pstmt = connection.prepareStatement("SELECT id, author, (SELECT COUNT(*) FROM Likes WHERE post_id = id), contents, pdate " +
+            pstmt = connection.prepareStatement("SELECT id, author, (SELECT COUNT(*) FROM Likes WHERE post_id = id) AS likes, contents, pdate " +
                     "FROM Posts " +
                     "   WHERE author IN (SELECT id2 FROM Friends WHERE  id1 = (?))" +
-                    "ORDER BY 5 DESC, 3 DESC ");
+                    "       OR author=?" +
+                    "ORDER BY pdate DESC, likes DESC ");
             pstmt.setInt(1, id);
+            pstmt.setInt(2, id);
             ResultSet results = pstmt.executeQuery();
 
 
             while (results.next()) {
                 Post p = new Post();
                 p.setId(results.getInt(1));
-                p.setAuthour(results.getInt(2));
+                p.setAuthor(results.getInt(2));
                 p.setLikes(results.getInt(3));
                 p.setText(results.getString(4));
                 p.setTimeStamp(results.getTimestamp(5));
@@ -986,6 +766,11 @@ public class Solution {
         } finally {
             try {
                 pstmt.close();
+            } catch (SQLException e) {
+                return new Feed();
+            }
+            try {
+                connection.close();
             } catch (SQLException e) {
                 return new Feed();
             }
@@ -1015,7 +800,7 @@ public class Solution {
             while (results.next()) {
                 Post p = new Post();
                 p.setId(results.getInt(1));
-                p.setAuthour(results.getInt(2));
+                p.setAuthor(results.getInt(2));
                 p.setLikes(results.getInt(3));
                 p.setText(results.getString(4));
                 p.setTimeStamp(results.getTimestamp(5));
@@ -1030,6 +815,11 @@ public class Solution {
         } finally {
             try {
                 pstmt.close();
+            } catch (SQLException e) {
+                return new Feed();
+            }
+            try {
+                connection.close();
             } catch (SQLException e) {
                 return new Feed();
             }
@@ -1053,23 +843,26 @@ public class Solution {
         PreparedStatement pstmt = null;
         ArrayList<Student> students = new ArrayList<>();
         try {
-            pstmt = connection.prepareStatement("" +
-                    "SELECT id, name, (SELECT name From Groups WHERE id = Students.faculty_id) FROM Students WHERE id IN " +
-                    "(SELECT id2 FROM Friends" +
-                    "   WHERE id1 IN (" +
-                    "          SELECT id2 " +
-                    "                  FROM Friends " +
-                    "                  WHERE id1 = (?)) AND id2 <> (?)" +
-                    "                  AND EXISTS (" +
-                    "                       SELECT group_id " +
-                    "                           FROM Members " +
-                    "                           WHERE student_id = ? AND group_id IN (SELECT group_id FROM Members WHERE student_id = id2)" +
-                    "                )" +
-                    ")");
+            pstmt = connection.prepareStatement(
+                    "SELECT id, name, (SELECT name From Groups WHERE id = Students.faculty_id) FROM Students \n" +
+                    "WHERE id IN -- friends of 2nd degree \n" +
+                    "( \n" +
+                    "    SELECT id2 FROM Friends   \n" +
+                    "    WHERE id1 IN (SELECT id2 FROM Friends WHERE id1 = (?)) \n" +
+                    "      AND id2 <> (?) \n" +
+                    "      AND id2 NOT IN (SELECT id2 FROM Friends WHERE id1 = (?)) \n" +
+                    "      AND EXISTS -- some commmon group \n" +
+                    "      (\n" +
+                    "            SELECT group_id FROM Members \n" +
+                    "            WHERE student_id = (?) \n" +
+                    "              AND group_id IN (SELECT group_id FROM Members WHERE student_id = id2) \n" +
+                    "        )\n" +
+                    ");");
 
             pstmt.setInt(1, studentId);
             pstmt.setInt(2, studentId);
             pstmt.setInt(3, studentId);
+            pstmt.setInt(4, studentId);
             ResultSet results = pstmt.executeQuery();
 
 
@@ -1090,6 +883,12 @@ public class Solution {
         } finally {
             try {
                 pstmt.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return new ArrayList<>();
+            }
+            try {
+                connection.close();
             } catch (SQLException e) {
                 e.printStackTrace();
                 return new ArrayList<>();
@@ -1125,6 +924,7 @@ public class Solution {
                     ") \n" +
                     "SELECT id1, id2 \n" +
                     "FROM traverse \n" +
+                    "WHERE id1>id2 \n" + // eliminate duplicates such as: (a,b) (b,a)
                     "GROUP BY id1, id2 \n" +
                     "HAVING MIN(distance) >= 5;");
 
@@ -1146,7 +946,7 @@ public class Solution {
                 return new ArrayList<>();
             }
             try {
-                pstmt.close();
+                connection.close();
             } catch (SQLException e) {
                 return new ArrayList<>();
             }
@@ -1161,12 +961,14 @@ public class Solution {
 
     private static ReturnValue finalize(Connection connection, PreparedStatement pstmt) {
         try {
-            pstmt.close();
+            if (pstmt != null)
+                pstmt.close();
         } catch (SQLException e) {
             return ReturnValue.ERROR;
         }
         try {
-            connection.close();
+            if (connection!=null)
+                connection.close();
         } catch (SQLException e) {
             return ReturnValue.ERROR;
         }
@@ -1174,15 +976,36 @@ public class Solution {
     }
 
     private static void finalizePrintExceptionStack(Connection connection, PreparedStatement pstmt) {
+        close_statement(pstmt);
+        close_connection(connection);
+    }
+
+    private static void close_statement(PreparedStatement pstmt) {
         try {
             pstmt.close();
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void close_connection(Connection connection) {
         try {
             connection.close();
         } catch (SQLException e) {
             e.printStackTrace();
+        }
+    }
+
+    /* Suitable for most cases of handling SQLException */
+    private static ReturnValue sqlExceptionToReturnValue(SQLException e) {
+        if (sqlStateMatches(e, FOREIGN_KEY_VIOLATION)) {
+            return ReturnValue.NOT_EXISTS;
+        } else if (sqlStateMatches(e, UNIQUE_VIOLATION)) {
+            return ReturnValue.ALREADY_EXISTS;
+        } else if (sqlStateMatches(e, CHECK_VIOLATION) || sqlStateMatches(e, NOT_NULL_VIOLATION)) {
+            return ReturnValue.BAD_PARAMS;
+        } else {
+            return ReturnValue.ERROR;
         }
     }
 
