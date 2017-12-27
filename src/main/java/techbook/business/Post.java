@@ -2,7 +2,6 @@ package techbook.business;
 
 
 
-import java.sql.Date;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 
@@ -10,7 +9,7 @@ import java.time.LocalDateTime;
 public class Post {
 
     Integer id = -1;
-    Integer authour = -1;
+    Integer author = -1;
     String text = null;
     Integer likes = 0;
     LocalDateTime date = null;
@@ -24,12 +23,12 @@ public class Post {
         this.id = id;
     }
 
-    public Integer getAuthour() {
-        return authour;
+    public Integer getAuthor() {
+        return author;
     }
 
-    public void setAuthour(Integer authour) {
-        this.authour = authour;
+    public void setAuthor(Integer author) {
+        this.author = author;
     }
 
     public String getText() {
@@ -78,7 +77,7 @@ public class Post {
         Post post = (Post) o;
 
         if (getId() != null ? !getId().equals(post.getId()) : post.getId() != null) return false;
-        if (getAuthour() != null ? !getAuthour().equals(post.getAuthour()) : post.getAuthour() != null) return false;
+        if (getAuthor() != null ? !getAuthor().equals(post.getAuthor()) : post.getAuthor() != null) return false;
         if (getText() != null ? !getText().equals(post.getText()) : post.getText() != null) return false;
         if (getLikes() != null ? !getLikes().equals(post.getLikes()) : post.getLikes() != null) return false;
         return getDate() != null ? getDate().equals(post.getDate()) : post.getDate() == null;
@@ -87,7 +86,7 @@ public class Post {
     @Override
     public int hashCode() {
         int result = getId() != null ? getId().hashCode() : 0;
-        result = 31 * result + (getAuthour() != null ? getAuthour().hashCode() : 0);
+        result = 31 * result + (getAuthor() != null ? getAuthor().hashCode() : 0);
         result = 31 * result + (getText() != null ? getText().hashCode() : 0);
         result = 31 * result + (getLikes() != null ? getLikes().hashCode() : 0);
         result = 31 * result + (getDate() != null ? getDate().hashCode() : 0);
@@ -98,7 +97,7 @@ public class Post {
     public String toString() {
         final StringBuilder sb = new StringBuilder("Post{");
         sb.append("id=").append(id);
-        sb.append(", authour=").append(authour);
+        sb.append(", author=").append(author);
         sb.append(", text='").append(text).append('\'');
         sb.append(", likes=").append(likes);
         sb.append(", date=").append(date);
